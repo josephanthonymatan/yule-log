@@ -1,0 +1,11 @@
+{
+  "name": "yule-log",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "build": "node scripts/build-site.mjs",
+    "icons": "node scripts/make-icons.mjs"
+  }
+}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yule Log</title>
+<meta name="description" content="An 8-bit Yule log for your phone or computer. Two fireplaces, one on Russian Hill and one at Lake Tahoe, whose windows follow the real sun, weather and seasons.">
+<meta name="theme-color" content="#0b0705">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/assets/icons/icon-180.png">
+<link rel="manifest" href="/assets/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Yule Log">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Yule Log">
+<meta property="og:title" content="Yule Log">
+<meta property="og:description" content="An 8-bit Yule log whose windows follow the real sun, weather and seasons on Russian Hill and at Lake Tahoe.">
+<meta property="og:url" content="https://yule-log.vercel.app/">
+<meta property="og:image" content="https://yule-log.vercel.app/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A pixel-art fire in a white plaster fireplace, with San Francisco Bay at dusk through the window">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="/assets/fonts/PixelifySans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/Silkscreen.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="src/app.css">
+</head>
+<body>
+<canvas id="stage" aria-label="An 8-bit fire burning in a fireplace, with a window onto the view outside"></canvas>
+
+<div id="chrome">
+  <div class="caption">
+    <p id="place"></p>
+    <p id="conditions" aria-live="polite"></p>
+    <button type="button" id="wood" title="Change the wood"></button>
+    <p id="credit" title="Tahoe's fog, and San Francisco's when NOAA is unavailable, is worked out from this data"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data by Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>)</p>
+  </div>
+  <div class="panel">
+    <div class="row two" id="scenes" role="group" aria-label="Place"></div>
+    <div class="soundRow">
+      <button type="button" id="sound"></button>
+      <label for="fireVol">Fire <input id="fireVol" type="range" min="0" max="1" step="0.01" value="0.85"></label>
+      <label for="weatherVol">Sky <input id="weatherVol" type="range" min="0" max="1" step="0.01" value="0.7"></label>
+      <button type="button" id="full">Full</button>
+      <button type="button" id="install" hidden>Install</button>
+    </div>
+    <button type="button" id="previewToggle" aria-expanded="false" aria-controls="previewPanel"></button>
+    <div id="previewPanel" hidden>
+      <div class="row four" role="group" aria-label="Preview other conditions">
+        <button type="button" id="opt-time" class="cycle"><i>Time</i><b>Live</b></button>
+        <button type="button" id="opt-sky" class="cycle"><i>Sky</i><b>Live</b></button>
+        <button type="button" id="opt-season" class="cycle"><i>Season</i><b>Live</b></button>
+        <button type="button" id="opt-decor" class="cycle"><i>Decor</i><b>Live</b></button>
+      </div>
+      <button type="button" id="backToLive">Back to live</button>
+    </div>
+  </div>
+</div>
+
+<script src="src/core.js"></script>
+<script src="src/sky.js"></script>
+<script src="src/rooms/materials.js"></script>
+<script src="src/view.js"></script>
+<script src="src/views/bay.js"></script>
+<script src="src/views/tahoe.js"></script>
+<script src="src/room.js"></script>
+<script src="src/rooms/mission.js"></script>
+<script src="src/rooms/tahoe.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+{
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "node scripts/build-site.mjs",
+  "outputDirectory": "site",
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/assets/fonts/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "yule-log-on.vercel.app"
+        }
+      ],
+      "destination": "https://yule-log.vercel.app/$1",
+      "permanent": false
+    }
+  ]
+}
