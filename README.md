@@ -21,6 +21,9 @@ Press **Crackle on** for sound; browsers keep a page silent until you ask. The c
 | `t` `w` `e` `d` | Step through time, sky, season, decor |
 | `s` | Sound on or off |
 | `f` | Full screen |
+| `g` | Turn the fog on or off for 30 minutes |
+
+If the window has the fog wrong, **Turn fog on** or **Turn fog off** corrects it for 30 minutes on your device. Press it again to undo.
 
 To link to a particular moment, use `#place-time-sky-season-decor`, for example [`#tahoe-sunset-clear-summer-none`](https://yule-log.vercel.app/#tahoe-sunset-clear-summer-none). The places are `mission` (Russian Hill) and `tahoe`, and `live` works in any later position. The other values are the ones the preview buttons cycle through, in lowercase, with Low fog written `lowfog`.
 
@@ -33,7 +36,7 @@ Everything is worked out for the place, in its own time zone, so Tahoe gets dark
 | Sun | Calculated from the time and coordinates | Needs no network |
 | Moon | Calculated, with an approximate position | Needs no network |
 | Temperature, cloud, rain, snow, wind | [Open-Meteo](https://open-meteo.com/) forecast, refreshed every 15 minutes while the tab is visible | Typical weather for the season, labeled `Almanac` |
-| Fog on the Bay | [NOAA visibility sensor](https://tidesandcurrents.noaa.gov/) at Pier 17, then Oakland Berth 38, then airport reports | Estimated from the forecast |
+| Fog on the Bay | By day, Jev judging the [Crissy Beach camera](https://www.parksconservancy.org/parks/park-web-cams) about every 15 minutes. When it's unsure, unavailable or dark: [NOAA visibility sensor](https://tidesandcurrents.noaa.gov/) at Pier 17, then Oakland Berth 38, then airport reports. Around rain, the forecast's low cloud and humidity count too | Estimated from the forecast |
 | Fog deck over the Bay's hills | Cloud height at Oakland airport, then SFO, from [weather.gov](https://www.weather.gov/documentation/services-web-api) | Estimated from the forecast |
 | Fog at Tahoe | Estimated from the forecast | `Almanac` |
 | Ships and sailboats | Simulated | Needs no network |
@@ -59,17 +62,20 @@ What will catch you out:
 - **Calm means silent.** The fire is only its crackle, and clear, cloudy, foggy and snowy skies make no continuous sound. Continuous noise belongs to wind and storms only.
 - **The service worker runs only on `https:`,** so local development always sees fresh files. On the real site, returning visitors get a new version on their next load.
 - **Each new script needs a tag in `index.html`.** The build inlines scripts by following those tags. Files in `assets/` are copied and cached automatically, apart from `og.png` and the `.txt` license files.
+- **`npm start` has no camera fog.** It doesn't run `api/fog.js`, so local development uses the other fog sources.
 
 ## Deploying
 
-The site is static and hosted on Vercel. From a linked checkout, `vercel deploy --prod` runs the build and publishes `site/`.
+The page is static and hosted on Vercel, with one function, `api/fog.js`. From a linked checkout, `vercel deploy --prod` runs the build, publishes `site/` and deploys the function.
+
+The function needs `TYPESAFE_API_KEY` in the project's environment variables. Without it, or if the camera or Jev fails, it reports no answer and the app uses its other fog sources. Vercel's cache keeps it to about one model call per 15 minutes; it refuses query strings and `Authorization` headers because either can get past that cache.
 
 The free Open-Meteo tier is for non-commercial use, so ads or paid features would need a paid plan. Its license requires the credit beside the conditions, so keep that visible.
 
 ## Credits
 
 - Weather by [Open-Meteo.com](https://open-meteo.com/), under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Tahoe's fog is worked out from this data, not reported by it.
-- Fog data from NOAA and the National Weather Service.
+- Fog data from NOAA and the National Weather Service. Camera frames from the [Golden Gate National Parks Conservancy](https://www.parksconservancy.org/parks/park-web-cams), read by [Jev](https://typesafe.ai/).
 - [Pixelify Sans](https://github.com/eifetx/Pixelify-Sans) and [Silkscreen](https://github.com/googlefonts/silkscreen), under the SIL Open Font License. The licenses are in `assets/fonts/`.
 
 ## License

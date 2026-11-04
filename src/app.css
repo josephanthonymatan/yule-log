@@ -103,6 +103,20 @@ body {
   border-bottom: 2px dotted #8a6a34;
 }
 #wood:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+#fog {
+  all: unset;
+  display: block;
+  width: fit-content;
+  margin-top: 4px;
+  font: 400 12px/1.4 var(--caps);
+  color: var(--ink-soft);
+  pointer-events: auto;
+  cursor: pointer;
+  border-bottom: 1px dotted currentColor;
+}
+#fog:hover { color: var(--ink); }
+#fog:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+#fog[hidden] { display: none; }
 #credit {
   margin-top: 3px;
   font: 400 10px/1.4 var(--caps);

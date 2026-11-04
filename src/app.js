@@ -81,6 +81,34 @@
     }
   };
 
+  // What the Crissy Beach camera shows. Only the Bay has one, and an old answer counts for nothing.
+  let camera = null;
+  const CAMERA_FRESH_MS = 60 * 60 * 1000;
+  const fetchCamera = async () => {
+    try {
+      camera = await Y.fetchCameraFog();
+      refresh();
+    } catch { /* The other fog sources carry on without it */ }
+  };
+
+  // A visitor who can see the fog can correct the window for half an hour, on this device
+  const FOG_OVERRIDE_MS = 30 * 60 * 1000;
+  const fogOverride = { mission: null, tahoe: null };
+  try {
+    Object.assign(fogOverride, JSON.parse(localStorage.getItem('yule-fog-override')));
+  } catch { /* A private window has no storage, and that's fine */ }
+  const activeOverride = () => {
+    const o = fogOverride[state.scene];
+    return o && o.until > Date.now() ? o : null;
+  };
+  const toggleFog = () => {
+    fogOverride[state.scene] = activeOverride() ? null : { on: !Y.isFoggy(current), until: Date.now() + FOG_OVERRIDE_MS };
+    try {
+      localStorage.setItem('yule-fog-override', JSON.stringify(fogOverride));
+    } catch { /* It still works until the page closes */ }
+    refresh();
+  };
+
   const resolve = () => {
     const place = Y.places[state.scene];
     const now = new Date();
@@ -98,6 +126,11 @@
       clock: cal.clock,
       source: weather[state.scene] ? source[state.scene] : 'almanac',
     };
+    if (state.sky === 'live') {
+      const override = activeOverride();
+      if (override) Object.assign(C, Y.setFog(C, override.on), { source: 'you' });
+      else if (state.scene === 'mission' && weather.mission && camera && now - camera.at < CAMERA_FRESH_MS) Object.assign(C, Y.readCameraFog(C, camera.foggy));
+    }
     if (state.time !== 'live') Object.assign(C, Y.timePresets[state.time](place));
     if (state.sky !== 'live') {
       Object.assign(C, { snowDepth: 0, deckM: null }, Y.skyPresets[state.sky]);
@@ -288,13 +321,19 @@
     for (const b of $('scenes').children) b.setAttribute('aria-pressed', b.dataset.id === state.scene);
     const C = current;
     if (C) {
-      const tag = C.source === 'live' ? 'Live' : C.source === 'preview' ? 'Preview' : 'Almanac';
+      const tag = C.source === 'live' ? 'Live' : C.source === 'preview' ? 'Preview' : C.source === 'you' ? 'Set by you' : 'Almanac';
       const place = scene().label;
       const showClock = state.time === 'live';
       $('place').textContent = `${place} \u00b7 ${showClock ? C.clock : pretty(state.time)}`;
       $('conditions').textContent = `${toF(C.temp)}\u00b0F \u00b7 ${C.word} \u00b7 ${tag}`;
       $('conditions').dataset.source = C.source;
+      const override = activeOverride();
+      $('fog').hidden = state.sky !== 'live';
+      $('fog').textContent = override
+        ? `Undo fog ${override.on ? 'on' : 'off'} · ${Math.ceil((override.until - Date.now()) / 60000)} min`
+        : `Turn fog ${Y.isFoggy(C) ? 'off' : 'on'}`;
     }
+    $('cameraCredit').hidden = state.scene !== 'mission';
     const woodBtn = $('wood');
     woodBtn.textContent = wood().label;
     for (const key of ['time', 'sky', 'season', 'decor']) {
@@ -324,6 +363,7 @@
     dirty = true;
     refresh();
   });
+  $('fog').addEventListener('click', toggleFog);
   $('sound').addEventListener('click', () => (state.soundOn ? stopSound() : startSound()));
   $('fireVol').addEventListener('input', (e) => {
     state.fire = +e.target.value;
@@ -350,6 +390,7 @@
     else if (e.key === 'd') cycleOption('decor');
     else if (e.key === 's' || e.key === 'm') { state.soundOn ? stopSound() : startSound(); }
     else if (e.key === 'f') fsBtn.click();
+    else if (e.key === 'g') { if (state.sky === 'live') toggleFog(); }
     else return;
     wake();
   });
@@ -424,6 +465,7 @@
     if (document.hidden) return;
     lastWeather = Date.now();
     SCENE_IDS.forEach(fetchLive);
+    fetchCamera();
   };
   refreshWeather();
   setInterval(refreshWeather, CACHE_MS);

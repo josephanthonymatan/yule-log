@@ -129,7 +129,7 @@
     95: 'Thunderstorm', 96: 'Thunderstorm', 99: 'Thunderstorm',
   };
 
-  const interpret = (cur) => {
+  const interpret = (cur, recentRain = false) => {
     const code = cur.weather_code;
     const snowy = [71, 73, 75, 77, 85, 86].includes(code);
     const rainy = (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95;
@@ -140,9 +140,16 @@
     const low = (cur.cloud_cover_low || 0) / 100, rh = (cur.relative_humidity_2m || 0) / 100;
     let fog = Math.max(Y.smooth(9000, 1200, vis), low * Y.smooth(0.8, 0.96, rh));
     if (code === 45 || code === 48) fog = Math.max(fog, 0.85);
+    // Around rain, that evidence is trusted over the Bay's sensors, which miss this kind of murk.
+    // Showers come and go every few minutes, but the air they leave behind stays thick.
+    // It's capped, because the window still has to show the rain, and a storm has its own look.
+    const mist = rainy || recentRain ? Math.min(fog, 0.65) : 0;
+    if (rainy) fog = code >= 95 ? 0.26 : Math.max(mist, 0.1 + intensity * 0.3);
+    const word = WORDS[code] || 'Unsettled';
     return {
       code,
-      word: !rainy && !snowy && fog >= 0.5 ? 'Fog' : WORDS[code] || 'Unsettled',
+      word: rainy && !(code >= 95) && mist >= 0.3 ? `${word} and fog` : !rainy && !snowy && fog >= 0.5 ? 'Fog' : word,
+      wetFog: rainy ? fog : mist,
       temp: cur.temperature_2m,
       cloud: Y.clamp((cur.cloud_cover || 0) / 100),
       fog: Y.clamp(fog),
@@ -215,25 +222,66 @@
     const fromVis = visKm == null ? 0 : Y.clamp(Math.log(SENSOR_MAX_KM / Math.max(visKm, 0.2)) / Math.log(SENSOR_MAX_KM / 0.8));
     // Cloud down near the height of the hill is fog at the window too
     const inIt = deck == null ? 0 : Y.smooth(150, 40, deck) * 0.6;
-    out.fog = Math.max(fromVis, inIt);
+    out.fog = Math.max(fromVis, inIt, out.wetFog);
+    out.sensorFog = fromVis;
     out.deckM = deck != null && deck < 400 ? Math.round(deck) : null;
     if (deck != null && deck < 600) out.cloud = Math.max(out.cloud, 0.9);
     const dry = !out.rain && !out.snow && !out.thunder;
     if (dry) {
       const forecast = out.code === 45 || out.code === 48 ? 'Overcast' : WORDS[out.code] || 'Unsettled';
       out.word = out.fog >= 0.3 ? 'Fog' : out.deckM != null && out.deckM < 300 ? 'Fog on the hills' : forecast;
+    } else if (out.rain && !out.thunder && Math.max(fromVis, inIt) >= 0.3) {
+      out.word = `${WORDS[out.code] || 'Unsettled'} and fog`;
     }
     return out;
   };
 
   Y.fetchWeather = async (place) => {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=${CURRENT}&wind_speed_unit=ms&timezone=${encodeURIComponent(place.tz)}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=${CURRENT}&minutely_15=precipitation&past_minutely_15=3&forecast_minutely_15=1&wind_speed_unit=ms&timezone=${encodeURIComponent(place.tz)}`;
     // If the fog sources are all down, the estimate from the forecast stays in place
     const fog = place.id === 'mission' ? measuredBayFog().catch(() => null) : null;
-    const out = interpret((await getJSON(url)).current);
+    const json = await getJSON(url);
+    const recentRain = ((json.minutely_15 && json.minutely_15.precipitation) || []).some((mm) => mm > 0);
+    const out = interpret(json.current, recentRain);
     const measured = await fog;
     return measured ? applyBayFog(out, measured) : out;
   };
+
+  // ---- Fog as seen through a camera, and as set by hand. A person's eye beats every other
+  // source for this, and the sensors barely register a marine layer. ----
+  const SEEN_FOG = 0.6;
+  const FOG_LIKELY = 0.7;
+  const FOG_UNLIKELY = 0.3;
+  const DARK_FOR_CAMERA = -4;
+
+  Y.fetchCameraFog = async () => {
+    const { foggy, at } = await getJSON('/api/fog');
+    return { foggy, at: Date.parse(at) };
+  };
+
+  // Puts a new fog value on conditions already worked out, and rewords them to match
+  const withFog = (C, fog, deckM = C.deckM) => {
+    const out = { ...C, fog, deckM };
+    const plain = C.word.replace(/ and fog$/, '');
+    if (C.thunder || C.snow) out.word = plain;
+    else if (C.rain) out.word = fog >= 0.3 ? `${plain} and fog` : plain;
+    else if (fog >= 0.3) out.word = 'Fog';
+    else if (deckM != null && deckM < 300) out.word = 'Fog on the hills';
+    else if (plain === 'Fog' || plain === 'Fog on the hills') out.word = C.cloud > 0.75 ? 'Overcast' : C.cloud > 0.4 ? 'Partly cloudy' : 'Clear';
+    return out;
+  };
+  const seenFog = (C) => ({ ...withFog(C, Math.max(C.fog, SEEN_FOG)), cloud: Math.max(C.cloud, 0.9) });
+
+  // Unsure, after dark or in a storm, the other sources keep the say. A camera that sees no fog
+  // overrules the estimates, but not a visibility sensor reading real fog on the water.
+  Y.readCameraFog = (C, foggy) => {
+    if (foggy == null || C.sunAlt < DARK_FOR_CAMERA || C.thunder) return C;
+    if (foggy >= FOG_LIKELY) return seenFog(C);
+    if (foggy <= FOG_UNLIKELY) return withFog(C, C.sensorFog || 0, null);
+    return C;
+  };
+  Y.isFoggy = (C) => C.fog >= 0.3 || (C.deckM != null && C.deckM < 300);
+  Y.setFog = (C, on) => (on ? seenFog(C) : withFog(C, 0, null));
 
   // When there is no network (or the page isn't allowed out), fall back on what the
   // place usually does in that season. It stays put for a few hours at a time.
